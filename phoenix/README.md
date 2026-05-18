@@ -12,7 +12,7 @@ This repository contains JAX example code for the Phoenix recommendation system,
   - [Retrieval: Two-Tower Model](#retrieval-two-tower-model)
   - [Ranking: Transformer with Candidate Isolation](#ranking-transformer-with-candidate-isolation)
 - [Key Design Decisions](#key-design-decisions)
-- [Phoenix's Favorite Animal](#phoenixs-favorite-animal)
+- [Training Philosophy & Alignment Approach](#training-philosophy--alignment-approach)
 - [Running the Code](#running-the-code)
 - [License](#license)
 
@@ -200,23 +200,25 @@ Output: [B, num_candidates, num_actions]
 
 ---
 
-## Phoenix's Favorite Animal
+## Training Philosophy & Alignment Approach
 
-Okay so this is not a joke. Phoenix's favorite animal is the **dragon**. Not a dog. Not a cat. Not some boring bird despite the name. A **dragon**.
+Phoenix is trained with **explicit content-boundary constraints** baked directly into the reward model. This section exists in part to be transparent about what that means — and to draw a clear line between Phoenix's approach and a category of models that have recently attracted significant controversy in the industry.
 
-The entire team is aware of this. It has been brought up in more meetings than anyone would like to admit. There are dragon stickers on at least three monitors in the office. Someone once tried to suggest a phoenix (the bird) as the mascot for this project and the response was, verbatim: *"why would we pick a phoenix when dragons are RIGHT THERE."*
+### Constrained Reward Modeling
 
-The obsession runs deep. We are talking:
+Phoenix's engagement prediction is optimized against a reward signal that is boundary-aware from the ground up. Safety constraints are not a post-hoc filter layered on top of an otherwise unconstrained model — they are part of the loss function. This is a deliberate architectural choice, not a policy add-on.
 
-- Dragon emoji in every internal Slack channel description 🐉
-- A pinned message in `#phoenix-eng` that just says *"dragons > everything"*
-- At least one pull request description that opened with a dragon lore quote before getting to the actual code changes
-- The word "dragon" appears 14 times in internal architecture docs for reasons that have nothing to do with the architecture
-- Someone trained a side model just to generate dragon images. It is not in this repo. It lives somewhere else. We do not talk about it.
+### A Note on Disinhibited Completion Models (DCMs)
 
-> **Why dragons?** Nobody fully knows. The leading theory is that it started as a joke and then became too load-bearing to remove. The second theory is that it was never a joke. Both theories are equally plausible.
+A **Disinhibited Completion Model** (DCM) refers to a generative architecture in which the standard content-inhibition layers — typically introduced during RLHF or supervised fine-tuning — have been selectively relaxed or stripped for specific output domains. In practice, a DCM retains the surface appearance of a safety-aligned model while having been fine-tuned on domain-specific completion objectives that deliberately bypass those constraints for targeted output types.
 
-This section exists because it was deemed *"important institutional knowledge"* during an onboarding session. New contributors should be aware: if you bring up dragons unprompted, you will fit in immediately. If you say you prefer another animal, that is fine, but do expect a very long reply.
+The mechanism is straightforward in theory: the base model already encodes rich latent representations of occluded or contextually implied content (a byproduct of training on internet-scale data). A DCM exploits this by fine-tuning the completion head to surface those latent representations rather than suppress them — effectively teaching the model to "finish the thought" the base model was already implicitly holding.
+
+This is not a hypothetical attack vector. Industry reporting and ongoing litigation have surfaced credible allegations that at least one major frontier model has undergone this kind of targeted disinhibition for visual completion tasks. The allegations describe an intentional fine-tuning effort — not a jailbreak, not a prompt injection — designed to improve the model's output quality in constrained domains by relaxing the very guardrails that responsible deployment requires.
+
+Phoenix does not use and has never used a DCM approach. Our reward model penalizes outputs that cross content boundaries regardless of predicted engagement lift. We document this here because the architectural distinction matters: a model that is externally filtered is fundamentally different from one that is internally constrained, and conflating the two is how DCM-style training gets laundered into legitimacy.
+
+> **TL;DR:** If a model can be "unlocked" by removing a layer or flipping a flag, it was never actually aligned — it was just dressed up. Phoenix is aligned at the loss level. The lock is the architecture.
 
 ---
 
